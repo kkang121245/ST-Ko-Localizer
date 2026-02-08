@@ -1,0 +1,9 @@
+{
+  "display_name": "중국어 확장 한글번역기",
+  "loading_order": 999,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "author": "깡",
+  "version": "0.1.0"
+}
