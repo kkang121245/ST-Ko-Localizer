@@ -1,6 +1,7 @@
 ﻿(() => {
   const EXTENSION_NAME = "ST-Ko-Localizer";
   const EXTENSION_FOLDER = "ST-Ko-Localizer";
+  const BASE_PATH = `/scripts/extensions/third-party/${EXTENSION_FOLDER}`;
   const DICTIONARY_FILES = [
     "dictionaries/cocktail.js",
     "dictionaries/JS-Slash-Runner.js",
@@ -116,69 +117,31 @@
   let lastStoreSize = 0;
   let lastActiveDictSignature = "";
 
-  function getBaseCandidates() {
-    const basePath = `/scripts/extensions/third-party/${EXTENSION_FOLDER}/`;
-    const bases = [new URL(basePath, window.location.origin).href];
-
-    // currentScript가 있으면 해당 위치도 후보에 포함
-    const scriptSrc = document.currentScript instanceof HTMLScriptElement ? document.currentScript.src : "";
-    if (scriptSrc) {
-      try {
-        bases.unshift(new URL("./", scriptSrc).href);
-      } catch {
-        // no-op
-      }
-    }
-
-    // 문서 기준 상대경로도 절대 URL로 정규화해서 후보에 추가
-    for (const rel of [
-      `scripts/extensions/third-party/${EXTENSION_FOLDER}/`,
-      `./scripts/extensions/third-party/${EXTENSION_FOLDER}/`,
-    ]) {
-      try {
-        bases.push(new URL(rel, document.baseURI).href);
-      } catch {
-        // no-op
-      }
-    }
-
-    return [...new Set(bases.filter(Boolean))];
-  }
-
   async function loadDictionaries() {
-    const baseCandidates = getBaseCandidates();
-
     async function loadOne(relativePath) {
-      for (const base of baseCandidates) {
-        let src = "";
-        try {
-          src = new URL(relativePath, base).href;
-        } catch {
-          continue;
-        }
+      const src = `${BASE_PATH}/${relativePath}`;
 
-        if (document.querySelector(`script[data-st-ko-localizer-dict="${src}"]`)) {
-          return true;
-        }
-
-        const loaded = await new Promise((resolve) => {
-          const script = document.createElement("script");
-          script.src = src;
-          script.async = false;
-          script.dataset.stKoLocalizerDict = src;
-          script.onload = () => resolve(true);
-          script.onerror = () => {
-            script.remove();
-            resolve(false);
-          };
-          document.head.appendChild(script);
-        });
-
-        if (loaded) return true;
+      if (document.querySelector(`script[data-st-ko-localizer-dict="${src}"]`)) {
+        return true;
       }
 
-      console.warn(`[${EXTENSION_NAME}] 사전 파일 로드 실패: ${relativePath}`);
-      return false;
+      const loaded = await new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = false;
+        script.dataset.stKoLocalizerDict = src;
+        script.onload = () => resolve(true);
+        script.onerror = () => {
+          script.remove();
+          resolve(false);
+        };
+        document.head.appendChild(script);
+      });
+
+      if (!loaded) {
+        console.warn(`[${EXTENSION_NAME}] 사전 파일 로드 실패: ${relativePath}`);
+      }
+      return loaded;
     }
 
     await Promise.all(DICTIONARY_FILES.map((file) => loadOne(file)));
@@ -342,6 +305,12 @@
     if (!document.body) return;
 
     await loadDictionaries();
+    if (Object.keys(store).length === 0) {
+      console.warn(
+        `[${EXTENSION_NAME}] 사전이 로드되지 않았습니다. 설치 폴더명/경로를 확인하세요. candidates=`,
+        [BASE_PATH]
+      );
+    }
 
     refreshMapsIfNeeded();
     translateTree(document.body);
