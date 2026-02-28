@@ -8,6 +8,8 @@
     "dictionaries/ST-Extension-Cleanup-World-Lorebook.js",
     "dictionaries/chat-history-backup.js",
     "dictionaries/st-memory-enhancement.js",
+    "dictionaries/minimax-tts.js",
+    "dictionaries/horae.js"
   ];
   const DICT_DETECTORS = {
     cocktail: () =>
@@ -37,6 +39,18 @@
           document.getElementById("memory_enhancement_settings_inline_drawer_content") ||
           document.getElementById("table_manager_container") ||
           document.getElementById("inline_drawer_header_content")
+      ),
+    "minimax-quote-tts": () =>
+      Boolean(
+        document.getElementById("mm_wand_item") ||
+          document.getElementById("mm-config-mask") ||
+          document.getElementById("vc-fab")
+      ),
+    "SillyTavern-Horae": () =>
+      Boolean(
+        document.getElementById("horae_drawer") ||
+          document.getElementById("horae_drawer_icon") ||
+          document.querySelector('[id^="horae-tab-"]')
       ),
   };
 
@@ -166,17 +180,29 @@
 
   const ATTR_NAMES = ["title", "placeholder", "aria-label"];
 
-  const SKIP_SELECTORS = ["script", "style", "code", "pre", "textarea", '[contenteditable="true"]', ".mes", ".mes_text", ".mes_block", "#chat", ".swipe_right", ".swipe_left"].join(",");
+  const SKIP_TEXT_SELECTORS = ["script", "style", "code", "pre", "textarea", '[contenteditable="true"]', ".mes", ".mes_text", ".mes_block", "#chat", ".swipe_right", ".swipe_left"].join(",");
+  const SKIP_ATTR_SELECTORS = ["script", "style", "code", "pre", ".mes", ".mes_text", ".mes_block", "#chat", ".swipe_right", ".swipe_left"].join(",");
 
   function hasChinese(str) {
     return /[\u3400-\u9FFF]/.test(str);
+  }
+
+  function isHoraeElement(el) {
+    if (!(el instanceof Element)) return false;
+    return Boolean(
+      el.closest(".horae-message-panel") ||
+        el.closest('[id^="horae-"]') ||
+        el.closest('[class*="horae"]')
+    );
   }
 
   function shouldTranslateElement(el) {
     if (!(el instanceof Element)) return false;
     // chat-history-backup 사용 지침 팝업 내부는 code/pre 포함 번역 허용
     if (el.closest(".backup_help_popup")) return true;
-    if (el.closest(SKIP_SELECTORS)) return false;
+    // Horae 메시지 패널은 채팅 영역 내부여도 번역 허용
+    if (isHoraeElement(el)) return true;
+    if (el.closest(SKIP_TEXT_SELECTORS)) return false;
     return true;
   }
 
@@ -221,7 +247,12 @@
   }
 
   function translateAttributes(el) {
-    if (!shouldTranslateElement(el)) return;
+    if (!(el instanceof Element)) return;
+    if (
+      !el.closest(".backup_help_popup") &&
+      !isHoraeElement(el) &&
+      el.closest(SKIP_ATTR_SELECTORS)
+    ) return;
 
     for (const attr of ATTR_NAMES) {
       const before = el.getAttribute(attr);
@@ -268,6 +299,7 @@
   }
 
   function startObserver() {
+    const observeRoot = document.documentElement || document.body;
     const observer = new MutationObserver((mutations) => {
       for (const m of mutations) {
         if (m.type === "characterData") {
@@ -283,7 +315,7 @@
       }
     });
 
-    observer.observe(document.body, {
+    observer.observe(observeRoot, {
       childList: true,
       subtree: true,
       characterData: true,
@@ -294,7 +326,7 @@
     setInterval(() => {
       try {
         const updated = refreshMapsIfNeeded();
-        if (updated) translateTree(document.body);
+        if (updated) translateTree(observeRoot);
       } catch (e) {
         console.warn(`[${EXTENSION_NAME}] translateTree 오류:`, e);
       }
@@ -302,7 +334,7 @@
   }
 
   async function init() {
-    if (!document.body) return;
+    if (!document.documentElement) return;
 
     await loadDictionaries();
     if (Object.keys(store).length === 0) {
@@ -313,7 +345,7 @@
     }
 
     refreshMapsIfNeeded();
-    translateTree(document.body);
+    translateTree(document.documentElement);
     startObserver();
 
     console.debug(
