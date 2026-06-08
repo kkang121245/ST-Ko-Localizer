@@ -2188,7 +2188,9 @@
     ],
     
     ["后端：未安装/未启用；SW：未注册 / 未接管当前页", "백엔드: 설치되지 않음/활성화되지 않음; SW: 등록되지 않음 / 현재 페이지를 제어하지 않음"],
+    ["后端：可用；SW：已注册 / 已接管", "백엔드: 사용 가능; SW: 등록됨 / 제어됨"],
     ["Early Bridge：未安装；注入位置：", "Early Bridge: 설치되지 않음; 삽입 위치:"],
+    ["Early Bridge：已安装（最新）；注入位置：", "Early Bridge: 설치됨 (최신); 주입 위치:"],
     ["通过 Service Worker + Early Bridge + 后端 Server Plugin 优化 SillyTavern 原始接口；当前优化", "Service Worker + Early Bridge + 백엔드 Server Plugin을 통해 실리태번 원본 인터페이스를 최적화합니다. 최적화 완료:"],
     ["注册/更新 SW", "SW 등록/업데이트"],
     ["注销 SW", "SW 등록 해제"],
