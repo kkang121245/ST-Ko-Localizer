@@ -89,19 +89,25 @@
     const override = new Map();
     const regex = [];
 
+    function addLookupEntry(map, source, translated) {
+      map.set(source, translated);
+      const normalized = normalizeLookupKey(source);
+      if (normalized && normalized !== source) map.set(normalized, translated);
+    }
+
     for (const [dictName, dict] of Object.entries(store)) {
       if (!activeDictionaries.has(dictName)) continue;
 
       // exactEntries: [[중국어, 한국어], ...]
       for (const entry of dict.exactEntries ?? []) {
         if (Array.isArray(entry) && entry.length >= 2 && entry[0] && entry[1]) {
-          exact.set(entry[0], entry[1]);
+          addLookupEntry(exact, entry[0], entry[1]);
         }
       }
       // overrideEntries: [[중국어, 한국어], ...]  (exact보다 우선순위 높음)
       for (const entry of dict.overrideEntries ?? []) {
         if (Array.isArray(entry) && entry.length >= 2 && entry[0] && entry[1]) {
-          override.set(entry[0], entry[1]);
+          addLookupEntry(override, entry[0], entry[1]);
         }
       }
       // regexRules: [{pattern, flags, replace}, ...]
@@ -187,6 +193,11 @@
     return /[\u3400-\u9FFF]/.test(str);
   }
 
+  function normalizeLookupKey(str) {
+    if (typeof str !== "string") return "";
+    return str.replace(/\s+/g, " ").trim();
+  }
+
   function isHoraeElement(el) {
     if (!(el instanceof Element)) return false;
     return Boolean(
@@ -220,7 +231,14 @@
     if (match) {
       const [, leading, core, trailing] = match;
       const coreTrimmed = core.trim();
-      const translated = OVERRIDE_MAP.get(core) || OVERRIDE_MAP.get(coreTrimmed) || EXACT_MAP.get(core) || EXACT_MAP.get(coreTrimmed);
+      const coreNormalized = normalizeLookupKey(core);
+      const translated =
+        OVERRIDE_MAP.get(core) ||
+        OVERRIDE_MAP.get(coreTrimmed) ||
+        OVERRIDE_MAP.get(coreNormalized) ||
+        EXACT_MAP.get(core) ||
+        EXACT_MAP.get(coreTrimmed) ||
+        EXACT_MAP.get(coreNormalized);
       if (translated) return leading + translated + trailing;
     }
 
