@@ -76,7 +76,7 @@
     ],
     [
       "- WorldInfo 条目抽屉：点击后先“占位下移到位 + 动画 + 加载中”，动画结束再初始化重内容，避免展开过程掉帧。",
-      "- WorldInfo 항목 드로어: 클릭 시 먼저 \"자리 잡기 + 애니메이션 + 로딩\"을 수행하고, 애니메이션 종료 후 무거운 콘텐츠를 초기화하여 프레임 드랍을 방지합니다."
+      "- 월드인포 항목 드로어: 클릭 시 먼저 \"자리 잡기 + 애니메이션 + 로딩\"을 수행하고, 애니메이션 종료 후 무거운 콘텐츠를 초기화하여 프레임 드랍을 방지합니다."
     ],
     [
       "- 当前包含：PromptManager 列表开关不再等待 token 计数完成（token 统计后台更新）。",
@@ -292,7 +292,7 @@
     ],
     [
       "WorldInfo 条目列表 content-visibility（实验）",
-      "WorldInfo 항목 목록 content-visibility (실험적)"
+      "월드인포 항목 목록 content-visibility (실험적)"
     ],
     [
       "实验性：对离开视口的条目跳过布局/绘制，条目很多时滚动更顺；若出现显示异常请关闭。",
@@ -1772,7 +1772,7 @@
       "다운로드"
     ],
     [
-      "即将从 国外下载（GitHub） 安装 鸡尾酒+： https://github.com/Lianues/cocktail-plus 鸡尾酒+ 包含可选后端 Server Plugin。安装前端扩展后，请进入鸡尾酒+ 面板按提示安装后端插件并重启 SillyTavern。",
+      "即将从 国外下载（GitHub） 安装 鸡尾酒+：https://github.com/Lianues/cocktail-plus 鸡尾酒+ 包含可选后端 Server Plugin。安装前端扩展后，请进入鸡尾酒+ 面板按提示安装后端插件并重启 SillyTavern。",
       "해외 다운로드(GitHub)를 통해 칵테일+ 설치를 진행합니다: https://github.com/Lianues/cocktail-plus 칵테일+에는 선택 사항인 백엔드 서버 플러그인이 포함되어 있습니다. 프론트엔드 확장을 설치한 후, 칵테일+ 패널에 들어가 안내에 따라 백엔드 플러그인을 설치하고 실리태번을 다시 시작해 주세요."
     ],
     [
