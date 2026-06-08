@@ -2240,7 +2240,13 @@
     ["settings/save 优化状态", "settings/save 최적화 상태"],
     ["暂无 settings/save 优化状态。", "현재 settings/save 최적화 상태가 없습니다."],
     ["chat/save 优化状态", "chat/save 최적화 상태"],
-    ["暂无 chat/save 优化状态。", "현재 chat/save 최적화 상태가 없습니다."]
+    ["暂无 chat/save 优化状态。", "현재 chat/save 최적화 상태가 없습니다."],
+    ["fast settings/get 保持原始响应结构，返回真实 Kobold/NovelAI/TextGen/OpenAI 预设、themes、instruct/context/sysprompt/reasoning 等字段；优化点是并行读取目录与内存缓存，不再做大字段过滤。", "fast settings/get은 원래의 응답 구조를 유지하며, 실제 Kobold/NovelAI/TextGen/OpenAI 프리셋, themes, instruct/context/sysprompt/reasoning 등의 필드를 반환합니다. 최적화 사항은 디렉토리 병렬 읽기와 메모리 캐시 활용이며, 더 이상 큰 필드에 대한 필터링을 수행하지 않습니다."],
+    ["工作方式：Early Bridge / Service Worker 捕获","작동 방식: Early Bridge / Service Worker가"],
+    ["作为基线，保存时将", "을 기준선으로 포착하며, 저장 시"],
+    ["改为 no-op hash 或深层 JSON patch；冲突/失败自动回退原始完整保存。","를 no-op 해시 또는 깊은 JSON 패치로 변경합니다. 충돌 및 실패 시에는 원본 전체 저장 방식으로 자동 fallback합니다."],
+    ["工作方式：Early Bridge 捕获", "작동 방식: Early Bridge가"],
+    ["作为基线，保存时将完整聊天上传改为 no-op hash 或聊天数组 patch；后端以内存缓存和文件 stat 校验当前 JSONL，冲突/失败自动回退原始保存。", "을 기준선으로 포착하며, 저장 시 전체 채팅 업로드 방식을 no-op 해시 또는 채팅 배열 패치로 변경합니다. 백엔드는 메모리 캐시와 파일 stat을 통해 현재 JSONL을 검증하며, 충돌 및 실패 시에는 원본 저장 방식으로 자동 fallback합니다."],
   ],
   "regexRules": [
     {
