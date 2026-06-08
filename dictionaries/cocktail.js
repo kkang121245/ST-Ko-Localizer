@@ -1768,6 +1768,18 @@
       "다운로드"
     ],
     [
+      "即将从 国外下载（GitHub） 安装 鸡尾酒+： https://github.com/Lianues/cocktail-plus 鸡尾酒+ 包含可选后端 Server Plugin。安装前端扩展后，请进入鸡尾酒+ 面板按提示安装后端插件并重启 SillyTavern。",
+      "해외 다운로드(GitHub)를 통해 칵테일+ 설치를 진행합니다: https://github.com/Lianues/cocktail-plus 칵테일+에는 선택 사항인 백엔드 서버 플러그인이 포함되어 있습니다. 프론트엔드 확장을 설치한 후, 칵테일+ 패널에 들어가 안내에 따라 백엔드 플러그인을 설치하고 실리태번을 다시 시작해 주세요."
+    ],
+    [
+      "即将从 国内下载（Gitee） 安装 鸡尾酒+： https://gitee.com/lianues/cocktail-plus 鸡尾酒+ 包含可选后端 Server Plugin。安装前端扩展后，请进入鸡尾酒+ 面板按提示安装后端插件并重启 SillyTavern。",
+      "국내 다운로드(Gitee)를 통해 칵테일+ 설치를 진행합니다: https://gitee.com/lianues/cocktail-plus 칵테일+에는 선택 사항인 백엔드 서버 플러그인이 포함되어 있습니다. 프론트엔드 확장을 설치한 후, 칵테일+ 패널에 들어가 안내에 따라 백엔드 플러그인을 설치하고 실리태번을 다시 시작해 주세요."
+    ],
+    [
+      "开始安装",
+      "설치 시작"
+    ],
+    [
       "启动加载优化",
       "시작 로딩 최적화"
     ],
