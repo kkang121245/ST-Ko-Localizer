@@ -348,7 +348,7 @@
       } catch (e) {
         console.warn(`[${EXTENSION_NAME}] translateTree 오류:`, e);
       }
-    }, 35000);
+    }, 3600000);
   }
 
   async function init() {
