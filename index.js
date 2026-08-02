@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   const EXTENSION_NAME = "ST-Ko-Localizer";
   const EXTENSION_FOLDER = "ST-Ko-Localizer";
   const BASE_PATH = `/scripts/extensions/third-party/${EXTENSION_FOLDER}`;
