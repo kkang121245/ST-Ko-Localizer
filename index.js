@@ -57,10 +57,8 @@
   if (globalThis.__stKoUiLocalizerLoaded) return;
   globalThis.__stKoUiLocalizerLoaded = true;
 
-  // dictionaries/ 폴더의 각 확장 JS 파일들이 이 store에 데이터를 등록함
   const store = (globalThis.__stKoLocalizerDictStore ??= {});
 
-  // store에 등록된 모든 사전 데이터를 병합해서 Map/Array를 빌드
   function getActiveDictionaryNames() {
     const active = new Set();
 
@@ -98,19 +96,19 @@
     for (const [dictName, dict] of Object.entries(store)) {
       if (!activeDictionaries.has(dictName)) continue;
 
-      // exactEntries: [[중국어, 한국어], ...]
+      
       for (const entry of dict.exactEntries ?? []) {
         if (Array.isArray(entry) && entry.length >= 2 && entry[0] && entry[1]) {
           addLookupEntry(exact, entry[0], entry[1]);
         }
       }
-      // overrideEntries: [[중국어, 한국어], ...]  (exact보다 우선순위 높음)
+      
       for (const entry of dict.overrideEntries ?? []) {
         if (Array.isArray(entry) && entry.length >= 2 && entry[0] && entry[1]) {
           addLookupEntry(override, entry[0], entry[1]);
         }
       }
-      // regexRules: [{pattern, flags, replace}, ...]
+      
       for (const rule of dict.regexRules ?? []) {
         if (rule.pattern && rule.replace) {
           try {
@@ -128,12 +126,12 @@
     return {exact, override, regex};
   }
 
-  // 현재 활성 Map (init 전에는 비어있음, 이후 주기적으로 갱신됨)
+  
   let EXACT_MAP = new Map();
   let OVERRIDE_MAP = new Map();
   let REGEX_RULES = [];
 
-  // store 키 수를 추적해서 새 파일이 로드됐을 때만 재빌드
+  
   let lastStoreSize = 0;
   let lastActiveDictSignature = "";
 
@@ -179,12 +177,38 @@
       EXACT_MAP = exact;
       OVERRIDE_MAP = override;
       REGEX_RULES = regex;
-      return true; // 갱신됨
+      return true; 
     }
     return false;
   }
 
   const ATTR_NAMES = ["title", "placeholder", "aria-label"];
+
+  
+  
+  const TRANSLATION_ROOT_SELECTOR = [
+    "#cocktail_drawer",
+    "#cocktail_settings_root",
+    "#tavern_helper",
+    "#world_info_cleanup_enabled",
+    "#world_info_cleanup_manual",
+    "#chat_auto_backup_settings",
+    "#chat_backup_list",
+    "#chat_backup_manual_backup",
+    ".backup_help_popup",
+    "#dialogue_popup",
+    ".memory_enhancement_container",
+    "#memory_enhancement_settings_inline_drawer_content",
+    "#table_manager_container",
+    "#inline_drawer_header_content",
+    "#mm_wand_item",
+    "#mm-config-mask",
+    "#vc-fab",
+    "#horae_drawer",
+    "#horae_drawer_icon",
+    '[id^="horae-tab-"]',
+    ".horae-message-panel",
+  ].join(",");
 
   const SKIP_TEXT_SELECTORS = ["script", "style", "code", "pre", "textarea", '[contenteditable="true"]', ".mes", ".mes_text", ".mes_block", "#chat", ".swipe_right", ".swipe_left"].join(",");
   const SKIP_ATTR_SELECTORS = ["script", "style", "code", "pre", ".mes", ".mes_text", ".mes_block", "#chat", ".swipe_right", ".swipe_left"].join(",");
@@ -209,9 +233,9 @@
 
   function shouldTranslateElement(el) {
     if (!(el instanceof Element)) return false;
-    // chat-history-backup 사용 지침 팝업 내부는 code/pre 포함 번역 허용
+    
     if (el.closest(".backup_help_popup")) return true;
-    // Horae 메시지 패널은 채팅 영역 내부여도 번역 허용
+    
     if (isHoraeElement(el)) return true;
     if (el.closest(SKIP_TEXT_SELECTORS)) return false;
     return true;
@@ -243,7 +267,11 @@
     }
 
     for (const rule of REGEX_RULES) {
+      
+      
+      rule.re.lastIndex = 0;
       if (rule.re.test(input)) {
+        rule.re.lastIndex = 0;
         return input.replace(rule.re, rule.replace);
       }
     }
@@ -316,39 +344,81 @@
     }
   }
 
-  function startObserver() {
-    const observeRoot = document.documentElement || document.body;
+  
+  
+  const rootObservers = new Map();
+  const pendingNodes = new Set();
+  let flushScheduled = false;
+
+  function queueTranslation(node) {
+    if (!node) return;
+    pendingNodes.add(node);
+    if (flushScheduled) return;
+    flushScheduled = true;
+    requestAnimationFrame(() => {
+      flushScheduled = false;
+      const nodes = [...pendingNodes];
+      pendingNodes.clear();
+      for (const pending of nodes) {
+        if (pending instanceof Node && pending.isConnected) translateTree(pending);
+      }
+    });
+  }
+
+  function observeTranslationRoot(root) {
+    if (!(root instanceof Element) || rootObservers.has(root)) return;
+
     const observer = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        if (m.type === "characterData") {
-          translateTree(m.target);
-          continue;
-        }
-        if (m.type === "childList") {
-          for (const node of m.addedNodes) translateTree(node);
-        }
-        if (m.type === "attributes" && m.target instanceof Element) {
-          translateAttributes(m.target);
+      for (const mutation of mutations) {
+        if (mutation.type === "childList") {
+          for (const node of mutation.addedNodes) queueTranslation(node);
+        } else if (mutation.type === "characterData") {
+          queueTranslation(mutation.target);
+        } else if (mutation.type === "attributes") {
+          queueTranslation(mutation.target);
         }
       }
     });
 
-    observer.observe(observeRoot, {
+    observer.observe(root, {
       childList: true,
       subtree: true,
       characterData: true,
       attributes: true,
       attributeFilter: [...ATTR_NAMES, "value"],
     });
+    rootObservers.set(root, observer);
+    refreshMapsIfNeeded();
+    queueTranslation(root);
+  }
 
-    setInterval(() => {
-      try {
-        const updated = refreshMapsIfNeeded();
-        if (updated) translateTree(observeRoot);
-      } catch (e) {
-        console.warn(`[${EXTENSION_NAME}] translateTree 오류:`, e);
+  function discoverTranslationRoots(node) {
+    if (!(node instanceof Element) && !(node instanceof Document)) return;
+    if (node instanceof Element && node.matches(TRANSLATION_ROOT_SELECTOR)) {
+      observeTranslationRoot(node);
+    }
+    node.querySelectorAll(TRANSLATION_ROOT_SELECTOR).forEach(observeTranslationRoot);
+  }
+
+  function startObserver() {
+    const observeRoot = document.documentElement || document.body;
+    discoverTranslationRoots(document);
+
+    const discoveryObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) discoverTranslationRoots(node);
       }
-    }, 2000);
+
+      
+      for (const [root, observer] of rootObservers) {
+        if (!root.isConnected) {
+          observer.disconnect();
+          rootObservers.delete(root);
+        }
+      }
+    });
+
+    discoveryObserver.observe(observeRoot, {childList: true, subtree: true});
   }
 
   async function init() {
@@ -362,8 +432,6 @@
       );
     }
 
-    refreshMapsIfNeeded();
-    translateTree(document.documentElement);
     startObserver();
 
     console.debug(
