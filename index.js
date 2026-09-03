@@ -10,7 +10,11 @@ if (globalThis.__stKoUiLocalizerLoaded) {
   globalThis.__stKoUiLocalizerLoaded = true;
 
 
-  const LOCALE_FILES = ["locales/JS-Slash-Runner.json", "locales/st-memory-enhancement.json"];
+  const LOCALE_FILES = [
+    "locales/JS-Slash-Runner.json",
+    "locales/st-memory-enhancement.json",
+    "locales/ST-BaiBai-Tools.json",
+  ];
 
 
   const MEM_ENH_LOCALE_RE =
@@ -253,7 +257,7 @@ if (globalThis.__stKoUiLocalizerLoaded) {
     return false;
   }
 
-  const ATTR_NAMES = ["title", "placeholder", "aria-label"];
+  const ATTR_NAMES = ["title", "placeholder", "aria-label", "label"];
 
 
   const TRANSLATION_ROOT_SELECTOR = [
@@ -287,10 +291,20 @@ if (globalThis.__stKoUiLocalizerLoaded) {
     "#bai_bai_toolkit_regex_vue_manager_root",
     "#bai_bai_toolkit_floor_directory_wand_container",
     ".bai-bai-preset-vue-list-host",
+    ".bai-bai-preset-global-library-dialog-layer",
     ".bai-bai-wi-global-selector",
     ".bai-bai-wi-popup-header",
     ".bai-bai-wi-search-replace-panel",
+    ".bai-bai-wi-mobile-expanded-extra",
     ".bai-bai-regex-vue-list",
+    ".bai-bai-floor-overlay",
+    ".bai-bai-save-generate-display",
+    "#world_editor_select",
+    "#send_but",
+    "#option_regenerate",
+
+    "#toast-container",
+    "dialog.popup",
   ].join(",");
 
   const SKIP_TEXT_SELECTORS = ["script", "style", "code", "pre", "textarea", '[contenteditable="true"]', ".mes", ".mes_text", ".mes_block", "#chat", ".swipe_right", ".swipe_left"].join(",");
@@ -346,17 +360,64 @@ if (globalThis.__stKoUiLocalizerLoaded) {
       if (translated) return leading + translated + trailing;
     }
 
-    for (const rule of REGEX_RULES) {
+    const fromInput = applyRegexRules(input);
+    if (fromInput !== null) return fromInput;
 
 
-      rule.re.lastIndex = 0;
-      if (rule.re.test(input)) {
-        rule.re.lastIndex = 0;
-        return input.replace(rule.re, rule.replace);
+    if (match) {
+      const [, leading, core, trailing] = match;
+      if (core !== input) {
+        const fromCore = applyRegexRules(core);
+        if (fromCore !== null) return leading + fromCore + trailing;
       }
     }
 
     return input;
+  }
+
+
+  function applyRegexRules(text) {
+    for (const rule of REGEX_RULES) {
+
+
+      rule.re.lastIndex = 0;
+      if (rule.re.test(text)) {
+        rule.re.lastIndex = 0;
+        return text.replace(rule.re, (...args) => {
+          let end = args.length - 2;
+          const last = args[args.length - 1];
+          if (last && typeof last === "object") end -= 1;
+          return expandReplacement(rule.replace, args.slice(1, end), text);
+        });
+      }
+    }
+
+    return null;
+  }
+
+
+  let replacementDepth = 0;
+  const MAX_REPLACEMENT_DEPTH = 3;
+
+
+  function expandReplacement(replacement, groups, original) {
+    return replacement.replace(/\$(\$|\d{1,2})/g, (token, key) => {
+      if (key === "$") return "$";
+      const value = groups[Number(key) - 1];
+      if (typeof value !== "string") return token;
+
+
+      if (!hasChinese(value) || value === original || replacementDepth >= MAX_REPLACEMENT_DEPTH) {
+        return value;
+      }
+
+      replacementDepth += 1;
+      try {
+        return translateString(value);
+      } finally {
+        replacementDepth -= 1;
+      }
+    });
   }
 
   function translateTextNode(textNode) {
