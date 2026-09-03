@@ -1,61 +1,126 @@
-(() => {
-  const EXTENSION_NAME = "ST-Ko-Localizer";
-  const EXTENSION_FOLDER = "ST-Ko-Localizer";
-  const BASE_PATH = `/scripts/extensions/third-party/${EXTENSION_FOLDER}`;
+import {addLocaleData, getCurrentLocale} from "/scripts/i18n.js";
+
+const EXTENSION_NAME = "ST-Ko-Localizer";
+const EXTENSION_FOLDER = "ST-Ko-Localizer";
+const BASE_PATH = `/scripts/extensions/third-party/${EXTENSION_FOLDER}`;
+
+if (globalThis.__stKoUiLocalizerLoaded) {
+  console.debug(`[${EXTENSION_NAME}] 이미 로드됨, 중복 초기화를 건너뜁니다.`);
+} else {
+  globalThis.__stKoUiLocalizerLoaded = true;
+
+
+  const LOCALE_FILES = ["locales/JS-Slash-Runner.json", "locales/st-memory-enhancement.json"];
+
+
+  const MEM_ENH_LOCALE_RE =
+    /\/scripts\/extensions\/third-party\/st-memory-enhancement\/assets\/locales\/([^/]+)\.json(?:[?#]|$)/;
+  const MEM_ENH_SHIPPED_LOCALES = new Set(["en", "zh-cn", "zh-tw"]);
+  const MEM_ENH_LOCALE_URL = `${BASE_PATH}/locales/st-memory-enhancement.json`;
+
+  function installMemoryEnhancementLocaleHook() {
+    if (typeof globalThis.fetch !== "function") return;
+    const nativeFetch = globalThis.fetch.bind(globalThis);
+
+    globalThis.fetch = function (input, init) {
+      try {
+        const url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input instanceof Request
+                ? input.url
+                : "";
+        const match = url && MEM_ENH_LOCALE_RE.exec(url);
+
+
+        if (match && !MEM_ENH_SHIPPED_LOCALES.has(match[1].toLowerCase())) {
+          return nativeFetch(MEM_ENH_LOCALE_URL, init);
+        }
+      } catch {
+
+      }
+      return nativeFetch(input, init);
+    };
+  }
+
+
+  installMemoryEnhancementLocaleHook();
+
+  async function injectLocaleData() {
+    const locale = getCurrentLocale();
+    const merged = {};
+    let loaded = 0;
+
+    await Promise.all(
+      LOCALE_FILES.map(async (relativePath) => {
+        try {
+          const response = await fetch(`${BASE_PATH}/${relativePath}`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          for (const [key, value] of Object.entries(data)) {
+            if (typeof value === "string") merged[key] = value;
+          }
+          loaded += 1;
+        } catch (e) {
+          console.warn(`[${EXTENSION_NAME}] 로케일 파일 로드 실패: ${relativePath}`, e);
+        }
+      })
+    );
+
+
+    addLocaleData(locale, merged);
+    console.debug(
+      `[${EXTENSION_NAME}] 로케일 주입 완료: locale=${locale}, files=${loaded}/${LOCALE_FILES.length}, keys=${Object.keys(merged).length}`
+    );
+  }
+
+
   const DICTIONARY_FILES = [
     "dictionaries/cocktail.js",
-    "dictionaries/JS-Slash-Runner.js",
     "dictionaries/ST-Extension-Cleanup-World-Lorebook.js",
-    "dictionaries/chat-history-backup.js",
     "dictionaries/st-memory-enhancement.js",
     "dictionaries/minimax-tts.js",
-    "dictionaries/horae.js"
+    "dictionaries/ST-BaiBai-Tools.js",
+    "dictionaries/extension-names.js",
   ];
+
   const DICT_DETECTORS = {
     cocktail: () =>
       Boolean(
         document.getElementById("cocktail_drawer") ||
           document.getElementById("cocktail_settings_root")
       ),
-    "JS-Slash-Runner": () =>
-      Boolean(
-        document.getElementById("tavern_helper") ||
-          document.querySelector("#extensions_settings #tavern_helper, #extensions_settings2 #tavern_helper")
-      ),
     "ST-Extension-Cleanup-World-Lorebook": () =>
       Boolean(
-        document.getElementById("world_info_cleanup_enabled") ||
+        document.querySelector(".world-info-cleanup-settings") ||
+          document.getElementById("world-cleanup-dialog") ||
+          document.getElementById("world_info_cleanup_enabled") ||
           document.getElementById("world_info_cleanup_manual")
       ),
-    "chat-history-backup": () =>
+    "ST-BaiBai-Tools": () =>
       Boolean(
-        document.getElementById("chat_auto_backup_settings") ||
-          document.getElementById("chat_backup_list") ||
-          document.getElementById("chat_backup_manual_backup")
+        document.getElementById("bai_bai_toolkit_container") ||
+          document.querySelector('[id^="bai_bai_toolkit_"]')
       ),
+    "extension-names": () => Boolean(document.querySelector(".extensions_info")),
     "st-memory-enhancement": () =>
       Boolean(
         document.querySelector(".memory_enhancement_container") ||
           document.getElementById("memory_enhancement_settings_inline_drawer_content") ||
+          document.getElementById("table_database_settings_drawer") ||
           document.getElementById("table_manager_container") ||
-          document.getElementById("inline_drawer_header_content")
+          document.getElementById("table_editor_container")
       ),
     "minimax-quote-tts": () =>
       Boolean(
         document.getElementById("mm_wand_item") ||
           document.getElementById("mm-config-mask") ||
-          document.getElementById("vc-fab")
-      ),
-    "SillyTavern-Horae": () =>
-      Boolean(
-        document.getElementById("horae_drawer") ||
-          document.getElementById("horae_drawer_icon") ||
-          document.querySelector('[id^="horae-tab-"]')
+          document.getElementById("vc-fab") ||
+          document.getElementById("vc-dialog")
       ),
   };
-
-  if (globalThis.__stKoUiLocalizerLoaded) return;
-  globalThis.__stKoUiLocalizerLoaded = true;
 
   const store = (globalThis.__stKoLocalizerDictStore ??= {});
 
@@ -96,19 +161,19 @@
     for (const [dictName, dict] of Object.entries(store)) {
       if (!activeDictionaries.has(dictName)) continue;
 
-      
+
       for (const entry of dict.exactEntries ?? []) {
         if (Array.isArray(entry) && entry.length >= 2 && entry[0] && entry[1]) {
           addLookupEntry(exact, entry[0], entry[1]);
         }
       }
-      
+
       for (const entry of dict.overrideEntries ?? []) {
         if (Array.isArray(entry) && entry.length >= 2 && entry[0] && entry[1]) {
           addLookupEntry(override, entry[0], entry[1]);
         }
       }
-      
+
       for (const rule of dict.regexRules ?? []) {
         if (rule.pattern && rule.replace) {
           try {
@@ -126,12 +191,16 @@
     return {exact, override, regex};
   }
 
-  
+
   let EXACT_MAP = new Map();
   let OVERRIDE_MAP = new Map();
   let REGEX_RULES = [];
 
-  
+
+  const translationMemo = new Map();
+  const MEMO_LIMIT = 4000;
+
+
   let lastStoreSize = 0;
   let lastActiveDictSignature = "";
 
@@ -177,37 +246,51 @@
       EXACT_MAP = exact;
       OVERRIDE_MAP = override;
       REGEX_RULES = regex;
-      return true; 
+
+      translationMemo.clear();
+      return true;
     }
     return false;
   }
 
   const ATTR_NAMES = ["title", "placeholder", "aria-label"];
 
-  
-  
+
   const TRANSLATION_ROOT_SELECTOR = [
     "#cocktail_drawer",
     "#cocktail_settings_root",
-    "#tavern_helper",
-    "#world_info_cleanup_enabled",
-    "#world_info_cleanup_manual",
-    "#chat_auto_backup_settings",
-    "#chat_backup_list",
-    "#chat_backup_manual_backup",
-    ".backup_help_popup",
+    "#cocktail_plus_intro_modal",
+    ".world-info-cleanup-settings",
+    "#world-cleanup-dialog",
+    "#preload-popup",
+    ".extensions_info",
     "#dialogue_popup",
     ".memory_enhancement_container",
     "#memory_enhancement_settings_inline_drawer_content",
+    "#table_database_settings_drawer",
     "#table_manager_container",
-    "#inline_drawer_header_content",
+    "#table_editor_container",
+    "#open_table",
+    ".dataBankAttachments",
+    "#push_to_chat_style_edit_guide",
+    "#push_to_chat_alternate_options",
+    "#push_to_chat_regex_options",
     "#mm_wand_item",
     "#mm-config-mask",
     "#vc-fab",
-    "#horae_drawer",
-    "#horae_drawer_icon",
-    '[id^="horae-tab-"]',
-    ".horae-message-panel",
+    "#vc-dialog",
+    "#mm-vrm-frame",
+    "#mm-vrm-info",
+    "#bai_bai_toolkit_container",
+    "#bai_bai_toolkit_preset_interface_collapse_wrapper",
+    "#bai_bai_toolkit_preset_backup_preview",
+    "#bai_bai_toolkit_regex_vue_manager_root",
+    "#bai_bai_toolkit_floor_directory_wand_container",
+    ".bai-bai-preset-vue-list-host",
+    ".bai-bai-wi-global-selector",
+    ".bai-bai-wi-popup-header",
+    ".bai-bai-wi-search-replace-panel",
+    ".bai-bai-regex-vue-list",
   ].join(",");
 
   const SKIP_TEXT_SELECTORS = ["script", "style", "code", "pre", "textarea", '[contenteditable="true"]', ".mes", ".mes_text", ".mes_block", "#chat", ".swipe_right", ".swipe_left"].join(",");
@@ -222,28 +305,25 @@
     return str.replace(/\s+/g, " ").trim();
   }
 
-  function isHoraeElement(el) {
-    if (!(el instanceof Element)) return false;
-    return Boolean(
-      el.closest(".horae-message-panel") ||
-        el.closest('[id^="horae-"]') ||
-        el.closest('[class*="horae"]')
-    );
-  }
-
   function shouldTranslateElement(el) {
     if (!(el instanceof Element)) return false;
-    
-    if (el.closest(".backup_help_popup")) return true;
-    
-    if (isHoraeElement(el)) return true;
-    if (el.closest(SKIP_TEXT_SELECTORS)) return false;
-    return true;
+    return !el.closest(SKIP_TEXT_SELECTORS);
   }
 
   function translateString(input) {
     if (typeof input !== "string" || input.length === 0) return input;
 
+    const memoized = translationMemo.get(input);
+    if (memoized !== undefined) return memoized;
+
+    const result = computeTranslation(input);
+
+    if (translationMemo.size >= MEMO_LIMIT) translationMemo.clear();
+    translationMemo.set(input, result);
+    return result;
+  }
+
+  function computeTranslation(input) {
     if (input.includes("当前版本") && input.includes("最新版本") && input.includes("是否现在更新")) {
       return input
         .replace(/当前版本[:：]\s*/g, "현재 버전: ")
@@ -267,8 +347,8 @@
     }
 
     for (const rule of REGEX_RULES) {
-      
-      
+
+
       rule.re.lastIndex = 0;
       if (rule.re.test(input)) {
         rule.re.lastIndex = 0;
@@ -283,10 +363,9 @@
     if (!(textNode instanceof Text)) return;
     const parent = textNode.parentElement;
     if (!parent || !shouldTranslateElement(parent)) return;
-    const isHelpPopup = Boolean(parent.closest(".backup_help_popup"));
 
     const before = textNode.nodeValue;
-    if (!before || (!hasChinese(before) && !isHelpPopup)) return;
+    if (!before || !hasChinese(before)) return;
 
     const after = translateString(before);
     if (after !== before) textNode.nodeValue = after;
@@ -294,11 +373,7 @@
 
   function translateAttributes(el) {
     if (!(el instanceof Element)) return;
-    if (
-      !el.closest(".backup_help_popup") &&
-      !isHoraeElement(el) &&
-      el.closest(SKIP_ATTR_SELECTORS)
-    ) return;
+    if (el.closest(SKIP_ATTR_SELECTORS)) return;
 
     for (const attr of ATTR_NAMES) {
       const before = el.getAttribute(attr);
@@ -344,25 +419,30 @@
     }
   }
 
-  
-  
+
   const rootObservers = new Map();
   const pendingNodes = new Set();
   let flushScheduled = false;
+
+  function flushPendingTranslations() {
+    if (!flushScheduled) return;
+    flushScheduled = false;
+    const nodes = [...pendingNodes];
+    pendingNodes.clear();
+    for (const pending of nodes) {
+      if (pending instanceof Node && pending.isConnected) translateTree(pending);
+    }
+  }
 
   function queueTranslation(node) {
     if (!node) return;
     pendingNodes.add(node);
     if (flushScheduled) return;
     flushScheduled = true;
-    requestAnimationFrame(() => {
-      flushScheduled = false;
-      const nodes = [...pendingNodes];
-      pendingNodes.clear();
-      for (const pending of nodes) {
-        if (pending instanceof Node && pending.isConnected) translateTree(pending);
-      }
-    });
+
+
+    requestAnimationFrame(flushPendingTranslations);
+    setTimeout(flushPendingTranslations, 100);
   }
 
   function observeTranslationRoot(root) {
@@ -409,7 +489,7 @@
         for (const node of mutation.addedNodes) discoverTranslationRoots(node);
       }
 
-      
+
       for (const [root, observer] of rootObservers) {
         if (!root.isConnected) {
           observer.disconnect();
@@ -421,7 +501,7 @@
     discoveryObserver.observe(observeRoot, {childList: true, subtree: true});
   }
 
-  async function init() {
+  async function initDomTranslator() {
     if (!document.documentElement) return;
 
     await loadDictionaries();
@@ -435,19 +515,23 @@
     startObserver();
 
     console.debug(
-      `[${EXTENSION_NAME}] loaded, dictionaries=${Object.keys(store).length}, active=${lastActiveDictSignature || "(없음)"}, keys=${Object.keys(store).join(", ") || "(없음)"}`
+      `[${EXTENSION_NAME}] DOM 번역기 시작, dictionaries=${Object.keys(store).length}, active=${lastActiveDictSignature || "(없음)"}, keys=${Object.keys(store).join(", ") || "(없음)"}`
     );
   }
+
+
+  await injectLocaleData();
+
 
   if (document.readyState === "loading") {
     document.addEventListener(
       "DOMContentLoaded",
       () => {
-        void init();
+        void initDomTranslator();
       },
       {once: true}
     );
   } else {
-    void init();
+    void initDomTranslator();
   }
-})();
+}

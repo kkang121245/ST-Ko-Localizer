@@ -1,9 +1,9 @@
 {
-  "display_name": "중국확장 UI 번역기",
-  "loading_order": 999,
+  "display_name": "중국확장 UI 한글화",
+  "loading_order": 50,
   "requires": [],
   "optional": [],
   "js": "index.js",
   "author": "깡",
-  "version": "0.1.0"
+  "version": "1.1.0"
 }
