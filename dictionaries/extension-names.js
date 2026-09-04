@@ -29,9 +29,19 @@
     [
       "MiniMax语音",
       "MiniMax 음성"
+    ],
+    [
+      "美化管理",
+      "뷰티 매니저"
     ]
   ],
   "overrideEntries": [],
-  "regexRules": []
+  "regexRules": [
+    {
+      "pattern": "^美化管理 v(.+)$",
+      "flags": "",
+      "replace": "뷰티 매니저 v$1"
+    }
+  ]
 };
 })();

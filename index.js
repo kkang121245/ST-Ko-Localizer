@@ -87,6 +87,7 @@ if (globalThis.__stKoUiLocalizerLoaded) {
     "dictionaries/st-memory-enhancement.js",
     "dictionaries/minimax-tts.js",
     "dictionaries/ST-BaiBai-Tools.js",
+    "dictionaries/theme-mgr.js",
     "dictionaries/extension-names.js",
   ];
 
@@ -116,6 +117,12 @@ if (globalThis.__stKoUiLocalizerLoaded) {
           document.getElementById("table_database_settings_drawer") ||
           document.getElementById("table_manager_container") ||
           document.getElementById("table_editor_container")
+      ),
+    "theme-mgr": () =>
+      Boolean(
+        document.querySelector(".tm-overlay") ||
+          document.getElementById("tm-fab-main") ||
+          document.getElementById("theme-mgr-ext-btn")
       ),
     "minimax-quote-tts": () =>
       Boolean(
@@ -303,6 +310,12 @@ if (globalThis.__stKoUiLocalizerLoaded) {
     "#send_but",
     "#option_regenerate",
 
+    ".tm-overlay",
+    ".tm-sheet-overlay",
+    ".tm-lightbox",
+    "#tm-fab-main",
+    "#theme-mgr-ext-btn",
+
     "#toast-container",
     "dialog.popup",
   ].join(",");
@@ -420,6 +433,42 @@ if (globalThis.__stKoUiLocalizerLoaded) {
     });
   }
 
+  function translateDialogMessage(message) {
+    if (typeof message !== "string" || !hasChinese(message)) return message;
+
+    refreshMapsIfNeeded();
+
+    const whole = translateString(message);
+    if (whole !== message) return whole;
+    if (!message.includes("\n")) return message;
+
+    return message
+      .split("\n")
+      .map((line) => translateString(line))
+      .join("\n");
+  }
+
+  function installNativeDialogHook() {
+    for (const name of ["alert", "confirm", "prompt"]) {
+      const native = globalThis[name];
+      if (typeof native !== "function" || native.__stKoLocalizerWrapped) continue;
+
+      const wrapped = function (message, ...rest) {
+        let translated = message;
+        try {
+          translated = translateDialogMessage(message);
+        } catch (e) {
+          console.warn(`[${EXTENSION_NAME}] 네이티브 대화상자 번역 실패`, e);
+          translated = message;
+        }
+        return native.call(globalThis, translated, ...rest);
+      };
+
+      wrapped.__stKoLocalizerWrapped = true;
+      globalThis[name] = wrapped;
+    }
+  }
+
   function translateTextNode(textNode) {
     if (!(textNode instanceof Text)) return;
     const parent = textNode.parentElement;
@@ -533,6 +582,12 @@ if (globalThis.__stKoUiLocalizerLoaded) {
     queueTranslation(root);
   }
 
+  const DISCOVERY_SKIP_SELECTOR = "#chat";
+
+  function isInsideSkippedContainer(node) {
+    return node instanceof Element && Boolean(node.closest(DISCOVERY_SKIP_SELECTOR));
+  }
+
   function discoverTranslationRoots(node) {
     if (!(node instanceof Element) && !(node instanceof Document)) return;
     if (node instanceof Element && node.matches(TRANSLATION_ROOT_SELECTOR)) {
@@ -547,6 +602,8 @@ if (globalThis.__stKoUiLocalizerLoaded) {
 
     const discoveryObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
+        if (mutation.addedNodes.length === 0) continue;
+        if (isInsideSkippedContainer(mutation.target)) continue;
         for (const node of mutation.addedNodes) discoverTranslationRoots(node);
       }
 
@@ -574,6 +631,7 @@ if (globalThis.__stKoUiLocalizerLoaded) {
     }
 
     startObserver();
+    installNativeDialogHook();
 
     console.debug(
       `[${EXTENSION_NAME}] DOM 번역기 시작, dictionaries=${Object.keys(store).length}, active=${lastActiveDictSignature || "(없음)"}, keys=${Object.keys(store).join(", ") || "(없음)"}`
