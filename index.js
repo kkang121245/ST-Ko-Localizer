@@ -1,4 +1,10 @@
 import {addLocaleData, getCurrentLocale} from "/scripts/i18n.js";
+// 정적 import 로 읽는다. fetch 를 쓰면 top-level await 가 생기고, 모듈 스크립트의 load 이벤트는
+// top-level await 완료 전에 발생하기 때문에 SillyTavern 이 다음 확장(酒馆助手 등)을 먼저
+// 로드해버려 번역이 주입되기 전에 패널이 중국어로 렌더링된다.
+import jsSlashRunnerLocale from "./locales/JS-Slash-Runner.json" with {type: "json"};
+import memoryEnhancementLocale from "./locales/st-memory-enhancement.json" with {type: "json"};
+import baiBaiToolsLocale from "./locales/ST-BaiBai-Tools.json" with {type: "json"};
 
 const EXTENSION_NAME = "ST-Ko-Localizer";
 const EXTENSION_FOLDER = "ST-Ko-Localizer";
@@ -10,10 +16,10 @@ if (globalThis.__stKoUiLocalizerLoaded) {
   globalThis.__stKoUiLocalizerLoaded = true;
 
 
-  const LOCALE_FILES = [
-    "locales/JS-Slash-Runner.json",
-    "locales/st-memory-enhancement.json",
-    "locales/ST-BaiBai-Tools.json",
+  const LOCALE_DATA = [
+    ["locales/JS-Slash-Runner.json", jsSlashRunnerLocale],
+    ["locales/st-memory-enhancement.json", memoryEnhancementLocale],
+    ["locales/ST-BaiBai-Tools.json", baiBaiToolsLocale],
   ];
 
 
@@ -52,31 +58,25 @@ if (globalThis.__stKoUiLocalizerLoaded) {
 
   installMemoryEnhancementLocaleHook();
 
-  async function injectLocaleData() {
+  function injectLocaleData() {
     const locale = getCurrentLocale();
     const merged = {};
     let loaded = 0;
 
-    await Promise.all(
-      LOCALE_FILES.map(async (relativePath) => {
-        try {
-          const response = await fetch(`${BASE_PATH}/${relativePath}`);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const data = await response.json();
-          for (const [key, value] of Object.entries(data)) {
-            if (typeof value === "string") merged[key] = value;
-          }
-          loaded += 1;
-        } catch (e) {
-          console.warn(`[${EXTENSION_NAME}] 로케일 파일 로드 실패: ${relativePath}`, e);
-        }
-      })
-    );
-
+    for (const [relativePath, data] of LOCALE_DATA) {
+      if (!data || typeof data !== "object") {
+        console.warn(`[${EXTENSION_NAME}] 로케일 파일이 비어 있습니다: ${relativePath}`);
+        continue;
+      }
+      for (const [key, value] of Object.entries(data)) {
+        if (typeof value === "string") merged[key] = value;
+      }
+      loaded += 1;
+    }
 
     addLocaleData(locale, merged);
     console.debug(
-      `[${EXTENSION_NAME}] 로케일 주입 완료: locale=${locale}, files=${loaded}/${LOCALE_FILES.length}, keys=${Object.keys(merged).length}`
+      `[${EXTENSION_NAME}] 로케일 주입 완료: locale=${locale}, files=${loaded}/${LOCALE_DATA.length}, keys=${Object.keys(merged).length}`
     );
   }
 
@@ -639,7 +639,7 @@ if (globalThis.__stKoUiLocalizerLoaded) {
   }
 
 
-  await injectLocaleData();
+  injectLocaleData();
 
 
   if (document.readyState === "loading") {
