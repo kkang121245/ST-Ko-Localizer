@@ -88,6 +88,7 @@ if (globalThis.__stKoUiLocalizerLoaded) {
     "dictionaries/minimax-tts.js",
     "dictionaries/ST-BaiBai-Tools.js",
     "dictionaries/theme-mgr.js",
+    "dictionaries/Silly-Game.js",
     "dictionaries/extension-names.js",
   ];
 
@@ -108,6 +109,12 @@ if (globalThis.__stKoUiLocalizerLoaded) {
       Boolean(
         document.getElementById("bai_bai_toolkit_container") ||
           document.querySelector('[id^="bai_bai_toolkit_"]')
+      ),
+    "Silly-Game": () =>
+      Boolean(
+        document.getElementById("st-mini-game-center") ||
+          document.getElementById("st-mini-game-center-launcher") ||
+          document.getElementById("stgc-extension-settings")
       ),
     "extension-names": () => Boolean(document.querySelector(".extensions_info")),
     "st-memory-enhancement": () =>
@@ -315,6 +322,11 @@ if (globalThis.__stKoUiLocalizerLoaded) {
     ".tm-lightbox",
     "#tm-fab-main",
     "#theme-mgr-ext-btn",
+
+    "#st-mini-game-center",
+    "#st-mini-game-center-launcher",
+    "#st-mini-game-center-restore",
+    "#stgc-extension-settings",
 
     "#toast-container",
     "dialog.popup",
