@@ -2,6 +2,7 @@
   const store = (globalThis.__stKoLocalizerDictStore ??= {});
   store["extension-names"] = {
   "exactEntries": [
+    ["数据管家 (Data Manager)", "데이터 관리자 (Data Manager)"],
     [
       "酒馆助手",
       "태번 헬퍼"
