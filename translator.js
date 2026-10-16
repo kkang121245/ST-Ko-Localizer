@@ -13,7 +13,10 @@ export function createTranslator(dictionary, limit = 1000) {
     catch (error) { console.warn('[ST-Ko-Localizer] 잘못된 번역 규칙', rule.pattern, error); }
   }
   const memo = new Map();
+  const maxInput = dictionary.maxInput || 0;
   function translate(input, depth = 0) {
+    // Text longer than any UI message is user content (e.g. preset bodies): skip all lookups.
+    if (maxInput && input.length > maxInput) return input;
     if (!hasChinese(input)) return input;
     if (memo.has(input)) return memo.get(input);
     const core = input.trim();

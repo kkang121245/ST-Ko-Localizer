@@ -3,17 +3,26 @@ import {DATA_MANAGER_CONTENT} from './dictionaries/st-data-manager.js';
 import {PERSONA_TAGS_CONTENT} from './dictionaries/persona-tags.js';
 
 const ATTRS = ['title', 'placeholder', 'aria-label', 'label'];
-const PRUNE = ['#chat', '.mes', 'script', 'style', 'code', 'pre', '#st-ko-localizer-settings', DATA_MANAGER_CONTENT, PERSONA_TAGS_CONTENT].join(',');
+const BASE_PRUNE = ['#chat', '.mes', 'script', 'style', 'code', 'pre', '#st-ko-localizer-settings', DATA_MANAGER_CONTENT, PERSONA_TAGS_CONTENT].join(',');
 const NO_TEXT = 'textarea,[contenteditable="true"]';
 const BOUNDARIES = 'dialog.popup,#toast-container > div,.extensions_info';
 
 export function createRuntime({catalog, translators, namesTranslator, document: doc = document,
   MutationObserver: Observer = MutationObserver, requestFrame = requestAnimationFrame,
   cancelFrame = cancelAnimationFrame, setTimer = setTimeout, clearTimer = clearTimeout,
-  now = () => performance.now()}) {
-  const allRoots = catalog.map(x => x.roots).filter(Boolean).join(',');
+  now = () => performance.now(), prune: extraPrune = ''}) {
+  const PRUNE = extraPrune ? BASE_PRUNE + ',' + extraPrune : BASE_PRUNE;
+  // staticRoots are rebuilt wholesale by their owner, never edited in place: translate once
+  // on discovery instead of keeping one observer per element (e.g. one per list row).
+  const ownRoots = x => [x.roots, x.staticRoots].filter(Boolean).join(',');
+  const allRoots = catalog.map(ownRoots).filter(Boolean).join(',');
   const enabled = catalog.filter(x => translators.has(x.id));
   const activeRoots = enabled.map(x => x.roots).filter(Boolean).join(',');
+  const staticSelector = enabled.map(x => x.staticRoots).filter(Boolean).join(',');
+  // Same-origin iframes owned by an extension get their own runtime over the frame document.
+  const frameEntries = enabled.filter(x => x.frames);
+  const frameSelector = frameEntries.map(x => x.frames).join(',');
+  const frames = new Map();
   const discoverySelector = [activeRoots, BOUNDARIES].filter(Boolean).join(',');
   const titleOwners = new Map(enabled.flatMap(x => (x.titles || []).map(title => [title, x.id])));
   const byId = new Map(catalog.map(x => [x.id.toLowerCase(), x.id]));
@@ -33,7 +42,7 @@ export function createRuntime({catalog, translators, namesTranslator, document: 
   function directOwner(el) {
     const root = allRoots && el.closest(allRoots);
     if (!root) return undefined;
-    const entry = catalog.find(x => x.roots && root.matches(x.roots));
+    const entry = catalog.find(x => ownRoots(x) && root.matches(ownRoots(x)));
     return entry && translators.has(entry.id) ? entry.id : null;
   }
   function owner(el) {
@@ -95,6 +104,31 @@ export function createRuntime({catalog, translators, namesTranslator, document: 
       stats.translations++;
     }
   }
+  function attachFrame(iframe) {
+    if (frames.has(iframe)) return;
+    const entry = frameEntries.find(x => iframe.matches(x.frames));
+    const state = {child: null};
+    const connect = () => {
+      let win, frameDoc;
+      try { win = iframe.contentWindow; frameDoc = iframe.contentDocument; } catch { frameDoc = null; }
+      if (state.child && state.doc === frameDoc) return;
+      state.child?.stop();
+      state.child = null;
+      state.doc = frameDoc;
+      // The initial about:blank load fires before the extension assigns its src.
+      if (!win || !frameDoc?.documentElement || frameDoc.URL === 'about:blank') return;
+      state.child = createRuntime({catalog: [{id: entry.id, roots: ':root'}],
+        translators: new Map([[entry.id, translators.get(entry.id)]]), namesTranslator, document: frameDoc,
+        MutationObserver: win.MutationObserver, requestFrame: cb => win.requestAnimationFrame(cb),
+        cancelFrame: id => win.cancelAnimationFrame(id), setTimer: (cb, ms) => win.setTimeout(cb, ms),
+        clearTimer: id => win.clearTimeout(id), now, prune: entry.framePrune});
+      state.child.start();
+    };
+    state.connect = connect;
+    iframe.addEventListener('load', connect);
+    frames.set(iframe, state);
+    connect();
+  }
   function* tree(root, discover = false) {
     if (!root.isConnected) return;
     if (root.nodeType === 3) { text(root); yield; return; }
@@ -107,12 +141,16 @@ export function createRuntime({catalog, translators, namesTranslator, document: 
       const element = node.nodeType === 1;
       const skip = element && node.matches(PRUNE);
       let descend = !skip;
+      if (!skip && element && frameSelector && node.matches(frameSelector)) attachFrame(node);
       if (!skip) {
         if (discover) {
           stats.discoveryVisits++;
           if (element && node.matches(discoverySelector)) {
             observe(node);
             descend = false; // Its observer owns descendant changes and translation.
+          } else if (element && staticSelector && node.matches(staticSelector)) {
+            yield* tree(node);
+            descend = false;
           }
         } else {
           stats.visited++;
@@ -189,6 +227,12 @@ export function createRuntime({catalog, translators, namesTranslator, document: 
         if (!root.isConnected) { observer.disconnect(); observers.delete(root); }
         yield;
       }
+      for (const [iframe, state] of frames) {
+        if (iframe.isConnected) continue;
+        iframe.removeEventListener('load', state.connect);
+        state.child?.stop();
+        frames.delete(iframe);
+      }
     }
     if (discoveries.size) {
       const batch = new Set(discoveries);
@@ -255,8 +299,9 @@ export function createRuntime({catalog, translators, namesTranslator, document: 
     stopped = true;
     globalObserver?.disconnect();
     for (const observer of observers.values()) observer.disconnect();
-    observers.clear(); pending.clear(); discoveries.clear(); active = null;
+    for (const [iframe, state] of frames) { iframe.removeEventListener('load', state.connect); state.child?.stop(); }
+    observers.clear(); pending.clear(); discoveries.clear(); frames.clear(); active = null;
     cancelFrame(frame); clearTimer(timer);
   }
-  return {start, stop, translate, owner, flush, stats, observers};
+  return {start, stop, translate, owner, flush, stats, observers, frames};
 }
